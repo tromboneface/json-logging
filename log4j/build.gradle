@@ -1,0 +1,126 @@
+
+plugins {
+    id 'org.springframework.boot' version '2.1.5.RELEASE'
+    id 'groovy'
+    id "com.gorylenko.gradle-git-properties" version "2.0.0"
+}
+
+apply plugin: 'groovy'
+apply plugin: 'io.spring.dependency-management'
+
+
+
+apply from: "$rootDir/gradle/publishing.gradle"
+
+
+//group = theGroup
+sourceCompatibility = 1.8
+
+repositories {
+    jcenter()
+    mavenCentral()
+    mavenLocal()
+    maven { url artifactory_url }
+}
+
+dependencies {
+    //runtime "net.logstash.log4j:jsonevent-layout:1.7"
+    runtime "com.vlkan.log4j2:log4j2-logstash-layout:0.19"
+
+    compile 'org.springframework.boot:spring-boot-starter-actuator'
+    compile 'org.springframework.boot:spring-boot-starter-jdbc'
+    compile 'org.springframework.boot:spring-boot-starter-web'
+    //compile 'org.springframework.boot:spring-boot-starter-webflux'
+    compile 'org.codehaus.groovy:groovy'
+    compile "org.grails:gorm-hibernate5-spring-boot:7.0.0.RELEASE"
+    compile "org.hibernate:hibernate-core:5.4.2.Final"
+    compile "org.hibernate:hibernate-ehcache:5.4.2.Final"
+    compile "org.springframework.boot:spring-boot-starter-log4j2"
+    compile 'gov.doe.jgi.pi.pps:clarity-node-manager:4.4.5'
+    compile 'com.github.groovy-wslite:groovy-wslite:1.1.3'
+    compile 'com.github.fge:json-schema-validator:2.2.6'
+    compile 'net.sf.json-lib:json-lib:2.4:jdk15'
+    testCompile 'org.spockframework:spock-core:0.7-groovy-2.0'
+    testCompile "org.springframework.boot:spring-boot-starter-test"
+    testCompile 'junit:junit:4.12'
+    testCompile 'info.cukes:cucumber-junit:1.2.4'
+    testCompile 'info.cukes:cucumber-groovy:1.2.4'
+    runtime "com.oracle:jdbc:11.2.0.4"
+}
+
+gitProperties {
+    //keys = ['git.branch','git.commit.id','git.commit.time']
+    dateFormat = "yyyy-MM-dd'T'HH:mmZ"
+    dateFormatTimeZone = "PST"
+    failOnNoGitDirectory = false
+    dotGitDirectory = "${project.rootDir}/../sow-item-init/.git"
+}
+
+configurations {
+    compile.exclude module: 'spring-boot-starter-logging'
+}
+
+test.testLogging.exceptionFormat = 'full'
+
+springBoot {
+    buildInfo()
+}
+
+sourceSets {
+    integTest {
+        groovy.srcDir file('src/integTest/groovy')
+        resources.srcDir file('src/integTest/resources')
+        compileClasspath = sourceSets.main.output + configurations.testRuntime
+        runtimeClasspath = output + compileClasspath
+    }
+}
+
+configurations {
+    integTestCompile.extendsFrom testCompile
+    integTestRuntime.extendsFrom testRuntime
+}
+
+task integTest(type: Test) {
+    description = 'Runs the integration tests.'
+    group = 'verification'
+    classpath = sourceSets.integTest.runtimeClasspath
+    testClassesDirs = sourceSets.integTest.output.classesDirs
+}
+
+configurations {
+    functTestCompile.extendsFrom testCompile
+    functTestRuntime.extendsFrom testRuntime
+}
+
+sourceSets {
+    functionalTest {
+        groovy.srcDir file('src/functional/groovy')
+        resources.srcDir  file('src/functional/resources')
+        compileClasspath = sourceSets.main.output + sourceSets.test.output + configurations.functTestCompile
+        runtimeClasspath = output + compileClasspath + configurations.functTestRuntime
+    }
+}
+
+task functionalTest(type: Test) {
+    doFirst {
+        if (file('application.port').exists()) {
+            def serverPort = file('application.port').text as int
+            environment SERVER_PORT: serverPort
+        }
+    }
+    testClassesDirs = sourceSets.functionalTest.output.classesDirs
+    classpath = sourceSets.functionalTest.runtimeClasspath
+}
+
+configurations {
+    cucumberRuntime {
+        extendsFrom testRuntime
+    }
+}
+
+task smokeTest(type: JavaExec) {
+    classpath = configurations.cucumberRuntime + sourceSets.functionalTest.runtimeClasspath
+    main = 'cucumber.api.cli.Main'
+    args = ['--plugin', 'pretty', '--glue', 'src/functional/steps', 'src/functional/features/smoke.feature']
+}
+

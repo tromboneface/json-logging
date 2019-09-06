@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="30">
+    <Properties>
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} |%t| %-5p %c %m%n</Property>
+        <Property name="log-path">${sys:user.home}/logs</Property>
+        <Property name="json-log-path">${sys:user.home}/json-logs</Property>
+    </Properties>
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+        </Console>
+        <RollingFile name="File" fileName="${log-path}/springboot.log"
+                     filePattern="${log-path}/springboot.log.%i">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <SizeBasedTriggeringPolicy size="10 MB"/>
+            <DefaultRolloverStrategy max="9"/>
+        </RollingFile>
+        <!-- this is not generating JSON
+        <RollingFile name="JSON" fileName="${json-log-path}/sow-item-json.log"
+                     filePattern="${json-log-path}/sow-item-json.log.%i">
+            <SizeBasedTriggeringPolicy size="10 MB"/>
+            <DefaultRolloverStrategy max="9"/>
+            <layout class="net.logstash.log4j.JSONEventLayoutV1" >
+                <param name="UserFields" value="application-name:sow-item" />
+            </layout>
+        </RollingFile>
+        -->
+        <RollingFile name="JSON" fileName="${json-log-path}/sow-item-json.log"
+                     filePattern="${json-log-path}/sow-item-json.log.%i">
+            <SizeBasedTriggeringPolicy size="10 MB"/>
+            <DefaultRolloverStrategy max="9"/>
+            <LogstashLayout dateTimeFormatPattern="yyyy-MM-dd'T'HH:mm:ss.SSSZZZ"
+                            eventTemplateUri="classpath:log4j2-logstash-layout.json"
+                            prettyPrintEnabled="false"
+                            stackTraceEnabled="true"
+                            userFields='{"application-name":"sow-item"}'
+            />
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+
+        <Logger name="org.hibernate" level="error"/>
+        <!--<Logger name="org.hibernate.SQL" level="DEBUG"/>-->
+        <!--<Logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="trace"/>-->
+        <Logger name="org.springframework" level="warn"/>
+        <!--<Logger name="org.springframework.transaction.interceptor" level="trace"/>-->
+        <Logger name = "gov.doe.jgi.pi.pps.clarity_node_manager.node" level="error"/>
+        <Logger name="timing" level="error"/>
+
+
+        <Root level="info">
+            <AppenderRef ref="File"/>
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="JSON"/>
+        </Root>
+    </Loggers>
+</Configuration>
